@@ -1,18 +1,59 @@
+//Movie Controller with HW4 requirements : movie reviews
 const Movie  =  require( "./movie" );
-
 exports.getMovies =
-	( req , res ) =>
+	async function( req , res )
 	{
-		Movie.find(
-			req.query,
-			( err , movie ) =>
-			{
-				if ( err )
+		reviews = req.query.reviews;
+		// If the request desires reviews, aggregate query for reviews too
+		if (reviews && reviews.toLowerCase()=='true')
+		{
+			// Prepare Query
+			query = req.query;
+			delete query.reviews;
+			
+			movies = await Movie.aggregate([
+											{
+												$match:		query
+											},
+											{
+												$lookup:	{
+																from         : 'reviews',
+																localField   : 'title',
+																foreignField : 'movieTitle',
+																as           : 'reviews'
+															}
+											},
+											{
+												$project:	{
+																title: 1,
+																actors: 2,
+																yearReleased:3,
+																genre:4,
+																reviews:'$reviews'
+															}
+											}
+										]);
+			res.status( 200 ).send( movies );
+		}			
+		// If reviews are not desired, only query movies
+		else
+		{
+			// Prepare Query
+			query = req.query;
+			delete query.reviews;
+			
+			// Query Database
+			Movie.find(
+				req.query,
+				( err , movie ) =>
 				{
-					res.status( 500 ).send( err );
-				}
-				res.status(200).send( movie );
-			})
+					if ( err )
+					{
+						res.status( 500 ).send( err );
+					}
+					res.status(200).send( movie );
+				});
+		}
 	};
 	
 exports.postMovie = 
@@ -202,4 +243,3 @@ exports.deleteMovie =
 										});
 			});
 	}
-	
